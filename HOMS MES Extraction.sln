@@ -1,9 +1,27 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35825.156 d17.13
+VisualStudioVersion = 17.13.35825.156
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HOMS MES Extractor", "HOMS MES Extractor\HOMS MES Extractor.csproj", "{63F11DA8-8D32-7F57-01EA-2CCE006331C2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HOMS MES Extractor Web", "HOMS MES Extractor Web\HOMS MES Extractor Web.csproj", "{C5AEF7A7-A0D1-FA49-B2C9-8B9C909D6F76}"
+EndProject
 Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{63F11DA8-8D32-7F57-01EA-2CCE006331C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63F11DA8-8D32-7F57-01EA-2CCE006331C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63F11DA8-8D32-7F57-01EA-2CCE006331C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63F11DA8-8D32-7F57-01EA-2CCE006331C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5AEF7A7-A0D1-FA49-B2C9-8B9C909D6F76}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5AEF7A7-A0D1-FA49-B2C9-8B9C909D6F76}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5AEF7A7-A0D1-FA49-B2C9-8B9C909D6F76}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5AEF7A7-A0D1-FA49-B2C9-8B9C909D6F76}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
