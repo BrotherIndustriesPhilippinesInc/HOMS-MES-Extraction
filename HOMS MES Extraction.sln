@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HOMS MES Extractor", "HOMS 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HOMS MES Extractor Web", "HOMS MES Extractor Web\HOMS MES Extractor Web.csproj", "{C5AEF7A7-A0D1-FA49-B2C9-8B9C909D6F76}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\Core.csproj", "{2FEE354A-7C03-4F72-B0AF-A3956B5F55F4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{C5AEF7A7-A0D1-FA49-B2C9-8B9C909D6F76}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C5AEF7A7-A0D1-FA49-B2C9-8B9C909D6F76}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C5AEF7A7-A0D1-FA49-B2C9-8B9C909D6F76}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2FEE354A-7C03-4F72-B0AF-A3956B5F55F4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2FEE354A-7C03-4F72-B0AF-A3956B5F55F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2FEE354A-7C03-4F72-B0AF-A3956B5F55F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2FEE354A-7C03-4F72-B0AF-A3956B5F55F4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

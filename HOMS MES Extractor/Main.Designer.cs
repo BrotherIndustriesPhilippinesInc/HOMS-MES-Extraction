@@ -44,6 +44,8 @@
             webView21.Source = new Uri("http://10.248.1.10/BIPHMES/FLoginNew.aspx", UriKind.Absolute);
             webView21.TabIndex = 0;
             webView21.ZoomFactor = 1D;
+            webView21.CoreWebView2InitializationCompleted += webView21_CoreWebView2InitializationCompleted;
+            webView21.NavigationCompleted += webView21_NavigationCompleted;
             // 
             // Main
             // 

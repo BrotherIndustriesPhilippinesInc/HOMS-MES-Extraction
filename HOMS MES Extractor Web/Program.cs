@@ -1,17 +1,32 @@
+﻿using Microsoft.OpenApi.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using HOMS_MES_Extractor_Web.Data;
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDbContext<HOMS_MES_Extractor_WebContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("HOMS_MES_Extractor_WebContext") ?? throw new InvalidOperationException("Connection string 'HOMS_MES_Extractor_WebContext' not found.")));
 
-// Add services to the container.
-builder.Services.AddControllersWithViews();
+// ✅ Add controllers (API only)
+builder.Services.AddControllers();
+
+// ✅ Optional: Enable OpenAPI / Swagger for testing
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+// ✅ Use Swagger in development
+if (app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
+
+app.MapGet("/", context =>
+{
+    context.Response.Redirect("/swagger");
+    return Task.CompletedTask;
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
@@ -20,8 +35,7 @@ app.UseRouting();
 
 app.UseAuthorization();
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+// ✅ Add controllers (API only)
+app.MapControllers();
 
 app.Run();
