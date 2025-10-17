@@ -75,7 +75,8 @@
             Controls.Add(pictureBox1);
             Controls.Add(button1);
             Name = "Start";
-            Text = "Start";
+            StartPosition = FormStartPosition.CenterScreen;
+            Text = "HOMS-eMES Extractor";
             Load += Start_Load;
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ResumeLayout(false);

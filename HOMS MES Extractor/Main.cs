@@ -24,8 +24,6 @@ namespace HOMS_MES_Extractor
 
             Uri emes_link = new Uri("http://" + username + ":" + password + "@10.248.1.10/BIPHMES/FLoginNew.aspx");
             webView21.Source = emes_link;
-
-            
         }
 
         private async Task Login(string username, string password, Uri link)
@@ -270,7 +268,7 @@ namespace HOMS_MES_Extractor
             }).ToList();
 
             using var client = new HttpClient();
-            client.BaseAddress = new Uri("https://localhost:7046/");
+            client.BaseAddress = new Uri("http://apbiphbpswb01:9876/");
 
             try
             {

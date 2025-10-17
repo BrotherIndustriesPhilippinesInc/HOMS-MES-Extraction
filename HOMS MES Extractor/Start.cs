@@ -25,24 +25,20 @@ namespace HOMS_MES_Extractor
             StartRandomCatLoop();
         }
 
-        private async Task StartHourlyExtractionAt50()
+        private async Task StartHourlyExtractionAt00()
         {
             while (true)
             {
                 DateTime now = DateTime.Now;
-                Debug.WriteLine($"Time: {DateTime.Now}");
+                Debug.WriteLine($"Time: {now}");
 
-                // Calculate next occurrence at :50
-                DateTime nextRun = new DateTime(now.Year, now.Month, now.Day, now.Hour, 50, 0);
-                if (now.Minute >= 50) // if past :50 this hour, schedule next hour
-                {
-                    nextRun = nextRun.AddHours(1);
-                }
+                // Calculate next occurrence at the start of the next hour
+                DateTime nextRun = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0).AddHours(1);
 
                 TimeSpan waitTime = nextRun - now;
                 Console.WriteLine($"Next extraction scheduled at {nextRun} (in {waitTime.TotalMinutes:F1} minutes)");
 
-                await Task.Delay(waitTime); // wait until :50
+                await Task.Delay(waitTime);
 
                 try
                 {
@@ -58,10 +54,11 @@ namespace HOMS_MES_Extractor
             }
         }
 
+
         private async void Start_Load(object sender, EventArgs e)
         {
             await LoadRandomCatAsync();
-            await StartHourlyExtractionAt50();
+            await StartHourlyExtractionAt00();
         }
 
         public class CatImage
@@ -88,7 +85,7 @@ namespace HOMS_MES_Extractor
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Failed to load cat image: " + ex.Message);
+                //MessageBox.Show("Failed to load cat image: " + ex.Message);
             }
         }
 
