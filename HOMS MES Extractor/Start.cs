@@ -30,20 +30,51 @@ namespace HOMS_MES_Extractor
             while (true)
             {
                 DateTime now = DateTime.Now;
-                Debug.WriteLine($"Time: {now}");
-
-                // Calculate next occurrence at the start of the next hour
                 DateTime nextRun = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0).AddHours(1);
-
                 TimeSpan waitTime = nextRun - now;
+
+                Console.WriteLine($"Next extraction scheduled at {nextRun} (in {waitTime.TotalMinutes:F1} minutes)");
+                await Task.Delay(waitTime);
+
+                try
+                {
+                    // Invoke on UI thread
+                    this.Invoke(new Action(() =>
+                    {
+                        Main main = new Main();
+                        main.Show();
+                    }));
+
+                    Console.WriteLine($"{DateTime.Now}: Extraction + bulk post completed.");
+                }
+                catch (Exception ex)    
+                {
+                    Console.WriteLine($"Error during extraction: {ex.Message}");
+                }
+            }
+        }
+
+
+        private async Task Start5MinutesChecking()
+        {
+            while (true)
+            {
+                DateTime now = DateTime.Now;
+                int minutesToNext5 = 5 - (now.Minute % 5);
+                DateTime nextRun = now.AddMinutes(minutesToNext5).AddSeconds(-now.Second);
+                TimeSpan waitTime = nextRun - now;
+
                 Console.WriteLine($"Next extraction scheduled at {nextRun} (in {waitTime.TotalMinutes:F1} minutes)");
 
                 await Task.Delay(waitTime);
 
                 try
                 {
-                    Main main = new Main();
-                    main.Show();
+                    this.Invoke(new Action(() =>
+                    {
+                        POStatus poStatus = new POStatus();
+                        poStatus.Show();
+                    }));
 
                     Console.WriteLine($"{DateTime.Now}: Extraction + bulk post completed.");
                 }
@@ -55,10 +86,15 @@ namespace HOMS_MES_Extractor
         }
 
 
+
         private async void Start_Load(object sender, EventArgs e)
         {
+            
             await LoadRandomCatAsync();
-            await StartHourlyExtractionAt00();
+            _ = Task.Run(StartHourlyExtractionAt00);
+            _ = Task.Run(Start5MinutesChecking);
+
+            Console.WriteLine("Both background tasks started.");
         }
 
         public class CatImage
@@ -110,6 +146,11 @@ namespace HOMS_MES_Extractor
         private async void button2_Click(object sender, EventArgs e)
         {
             await LoadRandomCatAsync();
+        }
+
+        private void Start_Shown(object sender, EventArgs e)
+        {
+            
         }
     }
 }

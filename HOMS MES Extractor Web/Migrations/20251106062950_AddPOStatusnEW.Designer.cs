@@ -3,6 +3,7 @@ using System;
 using HOMS_MES_Extractor_Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HOMS_MES_Extractor_Web.Migrations
 {
     [DbContext(typeof(HOMS_MES_Extractor_WebContext))]
-    partial class HOMS_MES_Extractor_WebContextModelSnapshot : ModelSnapshot
+    [Migration("20251106062950_AddPOStatusnEW")]
+    partial class AddPOStatusnEW
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,8 +33,9 @@ namespace HOMS_MES_Extractor_Web.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("FinishedQty")
-                        .HasColumnType("integer");
+                    b.Property<string>("FinishedQty")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("ModelCode")
                         .IsRequired()
@@ -45,15 +49,17 @@ namespace HOMS_MES_Extractor_Web.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("PlannedQty")
-                        .HasColumnType("integer");
+                    b.Property<string>("PlannedQty")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("ProdLine")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("ProducedQty")
-                        .HasColumnType("integer");
+                    b.Property<string>("ProducedQty")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Production")
                         .IsRequired()

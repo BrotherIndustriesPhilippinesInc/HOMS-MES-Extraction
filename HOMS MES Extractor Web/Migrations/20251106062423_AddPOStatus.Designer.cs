@@ -3,6 +3,7 @@ using System;
 using HOMS_MES_Extractor_Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HOMS_MES_Extractor_Web.Migrations
 {
     [DbContext(typeof(HOMS_MES_Extractor_WebContext))]
-    partial class HOMS_MES_Extractor_WebContextModelSnapshot : ModelSnapshot
+    [Migration("20251106062423_AddPOStatus")]
+    partial class AddPOStatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,51 +24,6 @@ namespace HOMS_MES_Extractor_Web.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Core.POStatus", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("FinishedQty")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ModelCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PO")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("POType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("PlannedQty")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ProdLine")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("ProducedQty")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Production")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("StartDateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("POStatus");
-                });
 
             modelBuilder.Entity("Core.PR1POL", b =>
                 {

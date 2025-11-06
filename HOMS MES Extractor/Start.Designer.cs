@@ -78,6 +78,7 @@
             StartPosition = FormStartPosition.CenterScreen;
             Text = "HOMS-eMES Extractor";
             Load += Start_Load;
+            Shown += Start_Shown;
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ResumeLayout(false);
         }

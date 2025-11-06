@@ -1,12 +1,18 @@
-﻿using Core;
-using IQCSystemV2.Functions;
+﻿using IQCSystemV2.Functions;
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace HOMS_MES_Extractor
 {
-    public partial class Main : Form
+    public partial class POStatus: Form
     {
         private WebViewFunctions webViewFunctions;
         private string username = "ZZPDE31G";
@@ -14,9 +20,9 @@ namespace HOMS_MES_Extractor
         private bool isQueryClicked = false;
         private bool didDownload = false;
 
-        private string targetDir = @"\\apbiphsh07\D0_ShareBrotherGroup\19_BPS\17_Installer\HOMSV2\PR1_EMES_Downloads\";
+        private string targetDir = @"\\apbiphsh07\D0_ShareBrotherGroup\19_BPS\17_Installer\HOMSV2\PR1_PO_Status\";
 
-        public Main()
+        public POStatus()
         {
             InitializeComponent();
 
@@ -40,7 +46,7 @@ namespace HOMS_MES_Extractor
         private async void webView21_CoreWebView2InitializationCompleted(object sender, Microsoft.Web.WebView2.Core.CoreWebView2InitializationCompletedEventArgs e)
         {
             //LOGIN
-            Uri ordersCheckTable = new Uri("http://" + username + ":" + password + "@10.248.1.10/BIPHMES/BenQGuru.Web.ReportCenter/FNewReportQuantityQP.aspx");
+            Uri ordersCheckTable = new Uri("http://" + username + ":" + password + "@10.248.1.10/BIPHMES/MOMODEL/FMOMP.ASPX");
             await Login(username, password, ordersCheckTable);
 
             webViewFunctions.AddDownloadStartingHandler(async (sender, args) =>
@@ -108,10 +114,8 @@ namespace HOMS_MES_Extractor
 
         private async Task ShowData()
         {
-            await webViewFunctions.SetTextBoxValueAsync("name", "UCWhereConditions1$txtItemCodeWhere$ctl00", "8CHA");
-            await webViewFunctions.ClickButtonAsync("id", "UCGroupConditions1_chbItemCodeGroup");
-            await webViewFunctions.ClickButtonAsync("id", "UCGroupConditions1_chbMOCodeGroup");
-            await webViewFunctions.ClickButtonAsync("id", "UCGroupConditions1_chbSSCodeGroup");
+            await webViewFunctions.SetTextBoxValueAsync("name", "txtItemCodeQuery", "8CHA");
+            await webViewFunctions.ClickButtonAsync("id", "chbUseDate");
             await webViewFunctions.ClickButtonAsync("id", "cmdQuery");
 
             isQueryClicked = true;
@@ -121,7 +125,7 @@ namespace HOMS_MES_Extractor
         {
             string isLoaded = await webViewFunctions.GetElementText("id", "lblTitle");
             isLoaded = isLoaded.Trim('"');
-            if (isLoaded == "Prod Report" && !isQueryClicked)
+            if (isLoaded == "PO Management" && !isQueryClicked)
             {
                 int retries = 0;
                 while (retries < 50)
@@ -134,7 +138,7 @@ namespace HOMS_MES_Extractor
                     await Task.Delay(3000);
                 }
 
-                bool isTableLoaded = await webViewFunctions.HasChildrenAsync("id", "gridWebGridDiv");
+                bool isTableLoaded = await webViewFunctions.HasChildrenAsync("id", "gridWebGrid");
                 if (!isTableLoaded && !isQueryClicked)
                 {
                     await ShowData();
@@ -157,6 +161,7 @@ namespace HOMS_MES_Extractor
 
         private async Task DownloadFile()
         {
+            await webViewFunctions.ExecuteJavascript($"document.getElementById(\"cmdGridExport\").removeAttribute(\"disabled\");\r\n");
             await webViewFunctions.ClickButtonAsync("id", "cmdGridExport");
             didDownload = true;
         }
@@ -164,15 +169,20 @@ namespace HOMS_MES_Extractor
         public class PoRecord
         {
             public string PO { get; set; }
-            public string ProdLine { get; set; }
-            public string Type { get; set; }
-            public int Summary { get; set; }
+            public string POType { get; set; }
             public string ModelCode { get; set; }
+            public int PlannedQty { get; set; }
+            public int ProducedQty { get; set; }
+            public int FinishedQty { get; set; }
+            public string Production { get; set; }
+            public string ProdLine { get; set; }
+
+            public DateTime StartDateTime { get; set; }
         }
 
         private async Task<List<PoRecord>> ExtractData()
         {
-            string folderPath = @"\\apbiphsh07\D0_ShareBrotherGroup\19_BPS\17_Installer\HOMSV2\PR1_EMES_Downloads\";
+            string folderPath = @"\\apbiphsh07\D0_ShareBrotherGroup\19_BPS\17_Installer\HOMSV2\PR1_PO_Status\";
 
             // 🧩 Get the only file in the folder
             var file = Directory.GetFiles(folderPath).FirstOrDefault();
@@ -212,42 +222,55 @@ namespace HOMS_MES_Extractor
 
                 // Parse header to find column count
                 var headers = lines[0].Split(separator);
+
+                //public string PO { get; set; }
+                //public string POType { get; set; }
+                //public string ModelCode { get; set; }
+                //public string PlannedQty { get; set; }
+                //public string ProducedQty { get; set; }
+                //public string FinishedQty { get; set; }
+                //public string Production { get; set; }
+                //public string ProdLine { get; set; }
+
+                //public DateTime StartDateTime { get; set; }
+
                 int poIndex = 1;
-                int prodLineIndex = 2;
-                int typeIndex = 5;
-                int summaryIndex = headers.Length - 1;
-                int modelCodeIndex = 0;
+                int poTypeIndex = 3;
+                int modelCodeIndex = 4;
+                int plannedQtyIndex = 5;
+                int producedQtyIndex = 6;
+                int finishedQtyIndex = 7;
+                int productionIndex = 11;
+                int prodLineIndex = 17;
 
                 foreach (var line in lines.Skip(1))
                 {
                     var cols = line.Split(separator);
 
-                    if (cols.Length <= summaryIndex)
-                        continue;
-
                     string po = cols[poIndex].Trim();
-                    string prodLine = cols[prodLineIndex].Trim();
-                    string type = cols[typeIndex].Trim();
-                    string summaryText = cols[summaryIndex].Trim();
+                    string poType = cols[poTypeIndex].Trim();
                     string modelCode = cols[modelCodeIndex].Trim();
+                    int plannedQty = int.Parse(cols[plannedQtyIndex]);
+                    int producedQty = int.Parse(cols[producedQtyIndex]);
+                    int finishedQty = int.Parse(cols[finishedQtyIndex]);
+                    string production = cols[productionIndex];
+                    string prodLine = cols[prodLineIndex].Trim();
 
-                    if (int.TryParse(summaryText, out int summary))
+                    records.Add(new PoRecord
                     {
-                        records.Add(new PoRecord
-                        {
-                            PO = po,
-                            ProdLine = prodLine,
-                            Type = type,
-                            Summary = summary,
-                            ModelCode = modelCode
-                        });
-                    }
+                        PO = po,
+                        POType = poType,
+                        ModelCode = modelCode,
+                        PlannedQty = plannedQty,
+                        ProducedQty = producedQty,
+                        FinishedQty = finishedQty,
+                        Production = production,
+                        ProdLine = prodLine,
+
+                        StartDateTime = DateTime.UtcNow
+                    });
+                    
                 }
-
-                // 🧩 Remove the last 2 unnecessary records
-                if (records.Count > 2)
-                    records.RemoveRange(records.Count - 2, 2);
-
                 return records;
             }
             catch (Exception ex)
@@ -264,14 +287,17 @@ namespace HOMS_MES_Extractor
 
             // Map extracted PoRecord -> API PoRecord
             DateTime now = DateTime.UtcNow;
-            var apiRecords = extractedRecords.Select(r => new Core.PoRecord
+            var apiRecords = extractedRecords.Select(r => new Core.POStatus
             {
                 PO = r.PO,
-                ProdLine = r.ProdLine,
-                Type = r.Type,
-                Summary = r.Summary,
+                POType = r.POType,
                 ModelCode = r.ModelCode,
-                CreatedDate = now
+                PlannedQty = r.PlannedQty,
+                ProducedQty = r.ProducedQty,
+                FinishedQty = r.FinishedQty,
+                Production = r.Production,
+                ProdLine = r.ProdLine,
+                StartDateTime = now
             }).ToList();
 
             using var client = new HttpClient();
@@ -283,12 +309,12 @@ namespace HOMS_MES_Extractor
                 string json = JsonConvert.SerializeObject(apiRecords);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                HttpResponseMessage response = await client.PostAsync("api/PoRecords/bulk", content);
+                HttpResponseMessage response = await client.PostAsync("api/POStatus/CheckActivity", content);
 
                 if (response.IsSuccessStatusCode)
                 {
                     string respContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine("Bulk insert successful: " + respContent);
+                    Console.WriteLine("insert successful: " + respContent);
                     this.Close();
                 }
                 else
@@ -315,10 +341,5 @@ namespace HOMS_MES_Extractor
 
         }
 
-        private void Main_Shown(object sender, EventArgs e)
-        {
-            this.Visible = false;
-            this.Hide();
-        }
     }
 }
