@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Core;
 using HOMS_MES_Extractor_Web.Data;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Diagnostics;
 
 namespace HOMS_MES_Extractor_Web.Controllers
 {
@@ -154,6 +157,208 @@ namespace HOMS_MES_Extractor_Web.Controllers
                 Message = $"{newRecords.Count} record(s) inserted successfully."
             });
         }
+
+        [HttpPost("CheckActivityEventStream")]
+        public async Task<ActionResult> PostPoStatusCheckActivityEventStream([FromBody] List<POStatus> poStatusList)
+        {
+            foreach (var item in poStatusList)
+            {
+                await _context.POStatus.AddAsync(item);
+            }
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        class TaktTimeModel
+        {
+            [JsonProperty("model_code")]
+            public string ModelCode { get; set; }
+
+            [JsonProperty("takt_time")]
+            public int TaktTime { get; set; }
+
+            [JsonProperty("section")]
+            public string Section { get; set; }
+        }
+
+        public class POStatusTaktTimeModel
+        {
+            public POStatus poStatus { get; set; }
+
+            public Target Target { get; set; } = new Target();
+
+            // Delayed or OnTime
+            public string Status { get; set; }
+
+            public Dictionary<string, int> HourlyOutput { get; set; } = new();
+        }
+
+        public class Target
+        {
+            public Dictionary<string, int> hourly { get; set; } = new();
+            public Dictionary<string, int> cumulative { get; set; } = new();
+        }
+
+        [HttpGet("DelayStatus")]
+        public async Task<ActionResult<List<POStatusTaktTimeModel>>> GetDelayStatus()
+        {
+            var results = new List<POStatusTaktTimeModel>();
+            var today = DateTime.UtcNow.Date;
+
+            var poList = await _context.POStatus
+                .Where(x => x.StartDateTime.Date == today)
+                .Select(x => x.PO)
+                .Distinct()
+                .ToListAsync();
+
+            // Fetch takt time data
+            var taktTimeList = new List<TaktTimeModel>();
+            using (var httpClient = new HttpClient())
+            {
+                var response = await httpClient.GetAsync("http://apbiphbpswb02/homs/api/admin/getTaktTimeV2.php");
+                response.EnsureSuccessStatusCode();
+
+                var jsonString = await response.Content.ReadAsStringAsync();
+                var jsonObject = JsonConvert.DeserializeObject<JObject>(jsonString);
+                var data = jsonObject["data"]?.ToObject<List<TaktTimeModel>>();
+                taktTimeList = data ?? new List<TaktTimeModel>();
+            }
+
+
+            foreach (var po in poList)
+            {
+                var poDetails = await _context.POStatus
+                    .Where(x => x.PO == po)
+                    .OrderBy(x => x.Id)
+                    .ToListAsync();
+
+                if (!poDetails.Any())
+                    continue;
+
+                // Detect start/resume times
+                var startTimes = new List<DateTime>();
+                int lastQty = 0;
+                DateTime? lastTime = null;
+                TimeSpan breakThreshold = TimeSpan.FromMinutes(30);
+
+                foreach (var item in poDetails)
+                {
+                    bool newSession = false;
+                    var localTime = item.StartDateTime.ToLocalTime();
+
+                    if (item.ProducedQty > lastQty &&
+                        lastTime != null &&
+                        (localTime - lastTime.Value) > breakThreshold)
+                        newSession = true;
+
+                    if (lastQty == 0 && item.ProducedQty > 0)
+                        newSession = true;
+
+                    if (newSession)
+                        startTimes.Add(localTime);
+
+                    lastQty = item.ProducedQty;
+                    lastTime = localTime;
+                }
+
+                var first = poDetails.First();
+                var last = poDetails.Last();
+                var modelCode = last.ModelCode;
+                var plannedQty = last.PlannedQty;
+                var taktInfo = taktTimeList.FirstOrDefault(x => x.ModelCode == modelCode);
+
+                if (taktInfo == null || taktInfo.TaktTime <= 0)
+                {
+                    results.Add(new POStatusTaktTimeModel
+                    {
+                        poStatus = last,
+                        Target = new Target
+                        {
+                            hourly = new Dictionary<string, int> { { "Message", 0 } },
+                            cumulative = new Dictionary<string, int> { { "Message", 0 } }
+                        },
+                        HourlyOutput = new Dictionary<string, int> { { "Message", 0 } },
+                        Status = "Unknown"
+                    });
+                    continue;
+                }
+
+                // Compute hourly output for snapshots
+                // Compute hourly output for snapshots
+                var hourlyOutput = poDetails
+                .GroupBy(x => x.StartDateTime.ToLocalTime().ToString("hh tt"))
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Sum(x => x.ProducedQty)
+                );
+
+
+                // Get hourly and cumulative targets and return proper JSON object instead of string
+                var targetData = GetHourlyAndCumulativeTargets(startTimes, first, taktInfo.TaktTime);
+
+                results.Add(new POStatusTaktTimeModel
+                {
+                    poStatus = last,
+                    Target = targetData,
+                    HourlyOutput = hourlyOutput,
+                    Status = "OnTime" // Optional: you can calculate delay by comparing HourlyOutput vs. Target.hourly
+                });
+
+                // Replace the string field with a dynamic object
+                //var lastResult = results.Last();
+                //lastResult.GetType().GetProperty("Target").SetValue(lastResult, targetData);
+            }
+
+            return Ok(results);
+        }
+
+        private Target GetHourlyAndCumulativeTargets(List<DateTime> startTimes, POStatus po, double taktTime)
+        {
+            var result = new Target
+            {
+                hourly = new Dictionary<string, int>(),
+                cumulative = new Dictionary<string, int>()
+            };
+
+            if (startTimes == null || startTimes.Count == 0)
+                startTimes = new List<DateTime> { po.StartDateTime.ToLocalTime() };
+
+            double unitsPerHour = 3600 / taktTime;
+            double remaining = po.PlannedQty;
+            int cumulative = 0;
+
+            for (int i = 0; i < startTimes.Count; i++)
+            {
+                var start = startTimes[i];
+                var end = (i + 1 < startTimes.Count) ? startTimes[i + 1] : DateTime.MaxValue;
+
+                var current = new DateTime(start.Year, start.Month, start.Day, start.Hour, 0, 0);
+
+                while (remaining > 0 && current < end)
+                {
+                    string label = current.ToString("hh tt");
+                    int hourlyTarget = (int)Math.Min(unitsPerHour, remaining);
+
+                    // Add target for this hour
+                    if (result.hourly.ContainsKey(label))
+                        result.hourly[label] += hourlyTarget;
+                    else
+                        result.hourly[label] = hourlyTarget;
+
+                    cumulative += hourlyTarget;
+                    result.cumulative[label] = cumulative;
+
+                    remaining -= hourlyTarget;
+                    current = current.AddHours(1);
+                }
+
+                if (remaining <= 0)
+                    break;
+            }
+
+            return result;
+        }
+
 
     }
 }

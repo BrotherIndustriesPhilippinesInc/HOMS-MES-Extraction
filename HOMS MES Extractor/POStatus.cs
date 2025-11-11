@@ -309,7 +309,7 @@ namespace HOMS_MES_Extractor
                 string json = JsonConvert.SerializeObject(apiRecords);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                HttpResponseMessage response = await client.PostAsync("api/POStatus/CheckActivity", content);
+                HttpResponseMessage response = await client.PostAsync("api/POStatus/CheckActivityEventStream", content);
 
                 if (response.IsSuccessStatusCode)
                 {
