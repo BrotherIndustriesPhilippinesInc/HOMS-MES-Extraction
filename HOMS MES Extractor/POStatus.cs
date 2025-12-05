@@ -115,7 +115,13 @@ namespace HOMS_MES_Extractor
         private async Task ShowData()
         {
             await webViewFunctions.SetTextBoxValueAsync("name", "txtItemCodeQuery", "8CHA");
-            await webViewFunctions.ClickButtonAsync("id", "chbUseDate");
+            await webViewFunctions.ClickButtonAsync("id", "chbImportDate");
+
+            //Insert the current date
+            await webViewFunctions.SetTextBoxValueAsync("name", "ImportDateTo$GuruDate", DateTime.Now.ToString("yyyy-MM-dd"));
+            //Insert the past 30 days of the current date
+            await webViewFunctions.SetTextBoxValueAsync("name", "ImportDateFrom$GuruDate", DateTime.Now.AddDays(-30).ToString("yyyy-MM-dd"));
+
             await webViewFunctions.ClickButtonAsync("id", "cmdQuery");
 
             isQueryClicked = true;
@@ -130,7 +136,6 @@ namespace HOMS_MES_Extractor
                 int retries = 0;
                 while (retries < 50)
                 {
-
                     if (!string.IsNullOrWhiteSpace(isLoaded) && isLoaded != "null")
                         break;
 
@@ -141,6 +146,7 @@ namespace HOMS_MES_Extractor
                 bool isTableLoaded = await webViewFunctions.HasChildrenAsync("id", "gridWebGrid");
                 if (!isTableLoaded && !isQueryClicked)
                 {
+                    await Task.Delay(3000);
                     await ShowData();
                 }
             }
@@ -176,6 +182,8 @@ namespace HOMS_MES_Extractor
             public int FinishedQty { get; set; }
             public string Production { get; set; }
             public string ProdLine { get; set; }
+
+            public string ActualStart { get; set; }
 
             public DateTime StartDateTime { get; set; }
         }
@@ -223,17 +231,6 @@ namespace HOMS_MES_Extractor
                 // Parse header to find column count
                 var headers = lines[0].Split(separator);
 
-                //public string PO { get; set; }
-                //public string POType { get; set; }
-                //public string ModelCode { get; set; }
-                //public string PlannedQty { get; set; }
-                //public string ProducedQty { get; set; }
-                //public string FinishedQty { get; set; }
-                //public string Production { get; set; }
-                //public string ProdLine { get; set; }
-
-                //public DateTime StartDateTime { get; set; }
-
                 int poIndex = 1;
                 int poTypeIndex = 3;
                 int modelCodeIndex = 4;
@@ -242,6 +239,7 @@ namespace HOMS_MES_Extractor
                 int finishedQtyIndex = 7;
                 int productionIndex = 11;
                 int prodLineIndex = 17;
+                int actualStartIndex = 14;
 
                 foreach (var line in lines.Skip(1))
                 {
@@ -255,6 +253,7 @@ namespace HOMS_MES_Extractor
                     int finishedQty = int.Parse(cols[finishedQtyIndex]);
                     string production = cols[productionIndex];
                     string prodLine = cols[prodLineIndex].Trim();
+                    string actualStart = cols[actualStartIndex].Trim();
 
                     records.Add(new PoRecord
                     {
@@ -266,6 +265,7 @@ namespace HOMS_MES_Extractor
                         FinishedQty = finishedQty,
                         Production = production,
                         ProdLine = prodLine,
+                        ActualStart = actualStart,
 
                         StartDateTime = DateTime.UtcNow
                     });
@@ -297,12 +297,13 @@ namespace HOMS_MES_Extractor
                 FinishedQty = r.FinishedQty,
                 Production = r.Production,
                 ProdLine = r.ProdLine,
+                ActualStart = r.ActualStart,
                 StartDateTime = now
             }).ToList();
 
             using var client = new HttpClient();
-            //client.BaseAddress = new Uri("http://apbiphbpswb01:9876/");
-            client.BaseAddress = new Uri("https://localhost:7046/");
+            client.BaseAddress = new Uri("http://apbiphbpswb01:9876/");
+            //client.BaseAddress = new Uri("https://localhost:7046/");
 
             try
             {
@@ -331,14 +332,12 @@ namespace HOMS_MES_Extractor
 
         private async void webView21_NavigationCompleted(object sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
         {
-
             await ProdDataDisplay();
 
             if (await CheckGraph() && !didDownload)
             {
                 await DownloadFile();
             }
-
         }
 
     }

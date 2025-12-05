@@ -3,6 +3,7 @@ using System;
 using HOMS_MES_Extractor_Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HOMS_MES_Extractor_Web.Migrations
 {
     [DbContext(typeof(HOMS_MES_Extractor_WebContext))]
-    partial class HOMS_MES_Extractor_WebContextModelSnapshot : ModelSnapshot
+    [Migration("20251205031431_AddUsers")]
+    partial class AddUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

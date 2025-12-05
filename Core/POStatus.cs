@@ -17,6 +17,9 @@ namespace Core
         public int FinishedQty { get; set; }
         public string Production { get; set; }
         public string ProdLine { get; set; }
+        public string? Status { get; set; }
+        public string? ActualStart { get; set; }
+        public Decimal? ComplianceRate { get; set; }
 
         public DateTime StartDateTime { get; set; }
     }

@@ -27,6 +27,8 @@ namespace HOMS_MES_Extractor
 
         private async Task StartHourlyExtractionAt00()
         {
+            using HttpClient client = new HttpClient();
+
             while (true)
             {
                 DateTime now = DateTime.Now;
@@ -38,7 +40,7 @@ namespace HOMS_MES_Extractor
 
                 try
                 {
-                    // Invoke on UI thread
+                    // Invoke extraction on UI thread
                     this.Invoke(new Action(() =>
                     {
                         Main main = new Main();
@@ -46,14 +48,28 @@ namespace HOMS_MES_Extractor
                     }));
 
                     Console.WriteLine($"{DateTime.Now}: Extraction + bulk post completed.");
+
+                    // --- Start sending delay email ---
+                    try
+                    {
+                        HttpResponseMessage response = await client.GetAsync("http://apbiphbpswb01:9876/api/POStatus/SendDelayEmail");
+
+                        if (response.IsSuccessStatusCode)
+                            Console.WriteLine($"{DateTime.Now}: Delay email sent successfully.");
+                        else
+                            Console.WriteLine($"{DateTime.Now}: Failed to send delay email. Status: {response.StatusCode}");
+                    }
+                    catch (Exception emailEx)
+                    {
+                        Console.WriteLine($"Error sending delay email: {emailEx.Message}");
+                    }
                 }
-                catch (Exception ex)    
+                catch (Exception ex)
                 {
                     Console.WriteLine($"Error during extraction: {ex.Message}");
                 }
             }
         }
-
 
         private async Task Start5MinutesChecking()
         {
@@ -84,8 +100,6 @@ namespace HOMS_MES_Extractor
                 }
             }
         }
-
-
 
         private async void Start_Load(object sender, EventArgs e)
         {
@@ -139,7 +153,7 @@ namespace HOMS_MES_Extractor
 
         private void button1_Click(object sender, EventArgs e)
         {
-            Main main = new Main();
+            POStatus main = new POStatus();
             main.Show();
         }
 

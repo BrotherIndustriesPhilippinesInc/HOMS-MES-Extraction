@@ -22,6 +22,8 @@ builder.Services.AddDbContext<HOMS_MES_Extractor_WebContext>(options =>
 // ✅ Add controllers (API only)
 builder.Services.AddControllers();
 
+builder.Services.AddHttpClient();
+
 // ✅ Optional: Enable OpenAPI / Swagger for testing
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

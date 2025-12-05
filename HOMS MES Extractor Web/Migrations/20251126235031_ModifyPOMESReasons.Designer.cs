@@ -3,6 +3,7 @@ using System;
 using HOMS_MES_Extractor_Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HOMS_MES_Extractor_Web.Migrations
 {
     [DbContext(typeof(HOMS_MES_Extractor_WebContext))]
-    partial class HOMS_MES_Extractor_WebContextModelSnapshot : ModelSnapshot
+    [Migration("20251126235031_ModifyPOMESReasons")]
+    partial class ModifyPOMESReasons
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -64,10 +67,6 @@ namespace HOMS_MES_Extractor_Web.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ActualDateTime")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("Advance_Reasons")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -78,6 +77,10 @@ namespace HOMS_MES_Extractor_Web.Migrations
 
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ForDateTime")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Linestop_Reasons")
                         .IsRequired()
@@ -108,9 +111,6 @@ namespace HOMS_MES_Extractor_Web.Migrations
 
                     b.Property<string>("ActualStart")
                         .HasColumnType("text");
-
-                    b.Property<decimal?>("ComplianceRate")
-                        .HasColumnType("numeric");
 
                     b.Property<int>("FinishedQty")
                         .HasColumnType("integer");
@@ -261,25 +261,6 @@ namespace HOMS_MES_Extractor_Web.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("PoRecord");
-                });
-
-            modelBuilder.Entity("Core.Users", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("IsAdmin")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("PortalID")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Users");
                 });
 #pragma warning restore 612, 618
         }

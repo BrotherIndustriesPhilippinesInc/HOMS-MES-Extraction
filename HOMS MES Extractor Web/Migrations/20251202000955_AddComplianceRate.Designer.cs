@@ -3,6 +3,7 @@ using System;
 using HOMS_MES_Extractor_Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HOMS_MES_Extractor_Web.Migrations
 {
     [DbContext(typeof(HOMS_MES_Extractor_WebContext))]
-    partial class HOMS_MES_Extractor_WebContextModelSnapshot : ModelSnapshot
+    [Migration("20251202000955_AddComplianceRate")]
+    partial class AddComplianceRate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -261,25 +264,6 @@ namespace HOMS_MES_Extractor_Web.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("PoRecord");
-                });
-
-            modelBuilder.Entity("Core.Users", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("IsAdmin")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("PortalID")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Users");
                 });
 #pragma warning restore 612, 618
         }

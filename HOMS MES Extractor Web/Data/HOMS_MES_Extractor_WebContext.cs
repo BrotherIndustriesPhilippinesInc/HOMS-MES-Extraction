@@ -17,5 +17,8 @@ namespace HOMS_MES_Extractor_Web.Data
         public DbSet<Core.PoRecord> PoRecord { get; set; } = default!;
         public DbSet<Core.PR1POL> PR1POL { get; set; } = default!;
         public DbSet<Core.POStatus> POStatus { get; set; } = default!;
+        public DbSet<Core.Email> Email { get; set; } = default!;
+        public DbSet<Core.POMESReasons> POMESReasons { get; set; } = default!;
+        public DbSet<Core.Users> Users { get; set; } = default!;
     }
 }

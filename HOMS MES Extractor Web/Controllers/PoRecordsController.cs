@@ -126,5 +126,10 @@ namespace HOMS_MES_Extractor_Web.Controllers
             return Ok(new { Count = poRecords.Count, Message = "Bulk insert successful." });
         }
 
+        [HttpGet("GetPOLStatus")]
+        public async Task<ActionResult<IEnumerable<PoRecord>>> GetPOLStatus()
+        {
+            return await _context.PoRecord.ToListAsync();
+        }
     }
 }

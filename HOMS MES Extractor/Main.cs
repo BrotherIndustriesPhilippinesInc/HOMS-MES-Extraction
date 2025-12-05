@@ -275,8 +275,8 @@ namespace HOMS_MES_Extractor
             }).ToList();
 
             using var client = new HttpClient();
-            //client.BaseAddress = new Uri("http://apbiphbpswb01:9876/");
-            client.BaseAddress = new Uri("https://localhost:7046/");
+            client.BaseAddress = new Uri("http://apbiphbpswb01:9876/");
+            //client.BaseAddress = new Uri("https://localhost:7046/");
 
             try
             {
