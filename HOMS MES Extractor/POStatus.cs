@@ -34,13 +34,20 @@ namespace HOMS_MES_Extractor
 
         private async Task Login(string username, string password, Uri link)
         {
-            await webViewFunctions.SetTextBoxValueAsync("id", "txtUserCode", username);
-            await Task.Delay(100);
-            await webViewFunctions.SetTextBoxValueAsync("id", "txtPassword", password);
-            await Task.Delay(100);
-            await webViewFunctions.ClickButtonAsync("id", "cmdSubmit");
+            try
+            {
+                await webViewFunctions.SetTextBoxValueAsync("id", "txtUserCode", username);
+                await Task.Delay(100);
+                await webViewFunctions.SetTextBoxValueAsync("id", "txtPassword", password);
+                await Task.Delay(100);
+                await webViewFunctions.ClickButtonAsync("id", "cmdSubmit");
 
-            webView21.Source = link;
+                webView21.Source = link;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         private async void webView21_CoreWebView2InitializationCompleted(object sender, Microsoft.Web.WebView2.Core.CoreWebView2InitializationCompletedEventArgs e)

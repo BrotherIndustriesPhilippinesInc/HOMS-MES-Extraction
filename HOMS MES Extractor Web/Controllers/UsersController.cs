@@ -183,68 +183,45 @@ namespace HOMS_MES_Extractor_Web.Controllers
         [HttpPost]
         public async Task<ActionResult<Users>> PostUsers(UserBIPHID input)
         {
-            // --- (A) LOCAL DB DUPLICATE CHECK ---
-            var existingLocal = await _context.Users
-                .FirstOrDefaultAsync(u => u.PortalID.ToString() == input.BIPHID);
+            // 1️⃣ LOCAL DUPLICATE CHECK (based on BIPHID or portalID if available)
+            bool existsLocal = await _context.Users
+                .AnyAsync(u => u.PortalID.ToString() == input.BIPHID);
 
-            if (existingLocal != null)
-            {
+            if (existsLocal)
                 return Conflict($"User with BIPHID '{input.BIPHID}' already exists in this system.");
-            }
 
-            // 1. Call external API (Lookup Portal User)
-            var response = await _httpClient.GetAsync(
-                "http://apbiphbpswb01:80/PortalAPI/api/SystemApproverLists/SearchViaSystem?systemID=64"
+            // 2️⃣ INSERT INTO PORTAL FIRST
+            var portalPayload = new
+            {
+                employeeNumber = input.BIPHID,
+                systemID = 64,
+                systemName = "Hourly Output Monitoring System V2",
+                approverNumber = 0
+            };
+
+            var content = new StringContent(
+                JsonConvert.SerializeObject(portalPayload),
+                Encoding.UTF8,
+                "application/json"
             );
 
-            if (!response.IsSuccessStatusCode)
-            {
-                return StatusCode((int)response.StatusCode,
-                    $"Portal API call failed with status {response.StatusCode}.");
-            }
-
-            var json = await response.Content.ReadAsStringAsync();
-            JArray approvers = JArray.Parse(json);
-
-            // 2. Find matching BIPHID
-            var matched = approvers.FirstOrDefault(x =>
-                x["employeeNumber"]?.ToString().Equals(input.BIPHID,
-                    StringComparison.OrdinalIgnoreCase) == true
+            var postPortal = await _httpClient.PostAsync(
+                "http://apbiphbpswb01:80/PortalAPI/api/SystemApproverLists",
+                content
             );
 
-            if (matched == null)
-            {
-                return BadRequest($"Employee number '{input.BIPHID}' not found in the Portal Approver list.");
-            }
+            if (!postPortal.IsSuccessStatusCode)
+                return StatusCode((int)postPortal.StatusCode,
+                    $"Portal API insert failed: {postPortal.StatusCode}");
 
-            if (!int.TryParse(matched["id"]?.ToString(), out int portalId))
-            {
-                return BadRequest("Could not parse a valid 'id' (Portal ID) from the API response.");
-            }
+            // 3️⃣ GET RESPONSE AND RETRIEVE PORTAL ID
+            var portalJson = await postPortal.Content.ReadAsStringAsync();
+            var portalResponse = JObject.Parse(portalJson);
 
-            // --- (B) PORTAL API DUPLICATE CHECK ---
-            var responseDupCheck = await _httpClient.GetAsync(
-                $"http://apbiphbpswb01:80/PortalAPI/api/SystemApproverLists/SearchViaSystem?systemID=77"
-            );
+            if (!int.TryParse(portalResponse["id"]?.ToString(), out int portalId))
+                return StatusCode(500, "Failed to retrieve PortalID from Portal API response.");
 
-            if (!responseDupCheck.IsSuccessStatusCode)
-            {
-                return StatusCode((int)responseDupCheck.StatusCode,
-                    "Portal API failed during duplicate check.");
-            }
-
-            var jsonDup = JArray.Parse(await responseDupCheck.Content.ReadAsStringAsync());
-
-            bool alreadyExistsInPortal = jsonDup.Any(x =>
-                x["employeeNumber"]?.ToString() == input.BIPHID
-            );
-
-            if (alreadyExistsInPortal)
-            {
-                return Conflict($"Employee '{input.BIPHID}' is already registered as a System Approver.");
-            }
-
-            // 3. Create LOCAL DB entity
+            // 4️⃣ INSERT INTO LOCAL DB
             var newUser = new Users
             {
                 PortalID = portalId,
@@ -254,54 +231,104 @@ namespace HOMS_MES_Extractor_Web.Controllers
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
 
-            // 3.1 Create Portal record
-            var portalPayload = new
-            {
-                employeeNumber = input.BIPHID,
-                systemID = 77,
-                systemName = "Logistic Dashboard",
-                approverNumber = 0
-            };
+            // 5️⃣ RETURN RESULT
+            return CreatedAtAction(nameof(GetUsers), new { id = newUser.Id }, newUser);
+        }
 
-            var jsonContent = new StringContent(
-                JsonConvert.SerializeObject(portalPayload),
+
+
+        // DELETE: api/Users/5
+        [HttpPost("DeleteUsers/{emp_id}")]
+        public async Task<IActionResult> DeleteUsers(string emp_id)
+        {
+            // 1. Get Portal list
+            var response = await _httpClient.GetAsync(
+                "http://apbiphbpswb01:80/PortalAPI/api/SystemApproverLists/SearchViaSystem?systemID=64"
+            );
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return StatusCode((int)response.StatusCode,
+                    $"Portal API lookup failed with status {response.StatusCode}.");
+            }
+
+            var portalList = JArray.Parse(await response.Content.ReadAsStringAsync());
+
+            // 2. Find the external record by employee number
+            var matchedPortal = portalList.FirstOrDefault(x =>
+                x["employeeNumber"]?.ToString() == emp_id
+            );
+
+            if (matchedPortal == null)
+            {
+                return NotFound($"Employee '{emp_id}' does not exist in Portal Approver List.");
+            }
+
+            // 3. Extract Portal ID
+            if (!int.TryParse(matchedPortal["id"]?.ToString(), out int portalId))
+            {
+                return BadRequest("Invalid Portal ID found in external record.");
+            }
+
+            // 4. Match local DB using PortalID
+            var localUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.PortalID == portalId);
+
+            if (localUser == null)
+            {
+                return NotFound($"Local user with PortalID '{portalId}' not found.");
+            }
+
+            // 5. Delete from Portal API first
+            var postData = new StringContent(
+                JsonConvert.SerializeObject(new { employeeNumber = emp_id, systemID = 64 }),
                 Encoding.UTF8,
                 "application/json"
             );
 
-            var response2 = await _httpClient.PostAsync(
-                "http://apbiphbpswb01:80/PortalAPI/api/SystemApproverLists",
-                jsonContent
+            var deleteResponse = await _httpClient.PostAsync(
+                $"http://apbiphbpswb01:80/PortalAPI/api/SystemApproverLists/Delete",
+                postData
             );
 
-            if (!response2.IsSuccessStatusCode)
+            if (!deleteResponse.IsSuccessStatusCode)
             {
-                return StatusCode((int)response2.StatusCode,
-                    $"Portal API insert failed with status {response2.StatusCode}");
+                return StatusCode((int)deleteResponse.StatusCode,
+                    $"Portal API deletion failed ({deleteResponse.StatusCode}). Local record NOT removed.");
             }
 
-            // 4. Return 201 Created
-            return CreatedAtAction(nameof(GetUsers),
-                new { id = newUser.Id },
-                newUser
-            );
-        }
-
-        // DELETE: api/Users/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUsers(int id)
-        {
-            var users = await _context.Users.FindAsync(id);
-            if (users == null)
-            {
-                return NotFound();
-            }
-
-            _context.Users.Remove(users);
+            // 6. Delete local DB record
+            _context.Users.Remove(localUser);
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
+
+        public class UserUpdateDTO
+        {
+            public bool IsAdmin { get; set; }
+        }
+
+        [HttpPost("UpdateUser/{biphid}")]
+        public async Task<IActionResult> UpdateUser(string biphid, UserUpdateDTO input)
+        {
+            // 1️⃣ Find local user by BIPHID (or PortalID)
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.PortalID.ToString() == biphid);
+
+            if (existingUser == null)
+                return NotFound($"User with BIPHID '{biphid}' not found locally.");
+
+            // 2️⃣ Update allowed fields
+            existingUser.IsAdmin = input.IsAdmin;
+
+            // 3️⃣ Save changes
+            await _context.SaveChangesAsync();
+
+            return Ok(existingUser);
+        }
+
+
 
         private bool UsersExists(int id)
         {
