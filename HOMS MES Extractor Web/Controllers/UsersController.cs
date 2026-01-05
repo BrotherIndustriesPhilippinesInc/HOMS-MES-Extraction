@@ -237,9 +237,13 @@ namespace HOMS_MES_Extractor_Web.Controllers
 
 
 
+        public class UserProfile()
+        {
+            public string emp_id { get; set; }
+        }
         // DELETE: api/Users/5
-        [HttpPost("DeleteUsers/{emp_id}")]
-        public async Task<IActionResult> DeleteUsers(string emp_id)
+        [HttpPost("DeleteUsers")]
+        public async Task<IActionResult> DeleteUsers([FromBody] UserProfile emp_id)
         {
             // 1. Get Portal list
             var response = await _httpClient.GetAsync(
@@ -256,12 +260,12 @@ namespace HOMS_MES_Extractor_Web.Controllers
 
             // 2. Find the external record by employee number
             var matchedPortal = portalList.FirstOrDefault(x =>
-                x["employeeNumber"]?.ToString() == emp_id
+                x["employeeNumber"]?.ToString() == emp_id.emp_id
             );
 
             if (matchedPortal == null)
             {
-                return NotFound($"Employee '{emp_id}' does not exist in Portal Approver List.");
+                return NotFound($"Employee '{emp_id.emp_id}' does not exist in Portal Approver List.");
             }
 
             // 3. Extract Portal ID
@@ -281,7 +285,7 @@ namespace HOMS_MES_Extractor_Web.Controllers
 
             // 5. Delete from Portal API first
             var postData = new StringContent(
-                JsonConvert.SerializeObject(new { employeeNumber = emp_id, systemID = 64 }),
+                JsonConvert.SerializeObject(new { employeeNumber = emp_id.emp_id, systemID = 64 }),
                 Encoding.UTF8,
                 "application/json"
             );
@@ -301,7 +305,7 @@ namespace HOMS_MES_Extractor_Web.Controllers
             _context.Users.Remove(localUser);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { message = "ok" });
         }
 
         public class UserUpdateDTO

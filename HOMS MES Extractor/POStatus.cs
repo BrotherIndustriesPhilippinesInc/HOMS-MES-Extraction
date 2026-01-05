@@ -339,11 +339,18 @@ namespace HOMS_MES_Extractor
 
         private async void webView21_NavigationCompleted(object sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
         {
-            await ProdDataDisplay();
-
-            if (await CheckGraph() && !didDownload)
+            try
             {
-                await DownloadFile();
+                await ProdDataDisplay();
+
+                if (await CheckGraph() && !didDownload)
+                {
+                    await DownloadFile();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
             }
         }
 
