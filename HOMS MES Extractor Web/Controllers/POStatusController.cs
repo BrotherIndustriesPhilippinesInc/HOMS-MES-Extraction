@@ -211,6 +211,10 @@ namespace HOMS_MES_Extractor_Web.Controllers
         {
             public Dictionary<string, int> HourlyOutput { get; set; } = new();
             public Dictionary<string, int> HourlyOutputCommulative { get; set; } = new();
+
+            public Dictionary<string, int> OutputHourly { get; set; } = new();
+
+            public Dictionary<string, int> OutputCumulative { get; set; } = new();
         }
 
         [HttpGet("DelayStatus")]
@@ -840,7 +844,10 @@ namespace HOMS_MES_Extractor_Web.Controllers
                         Output = new HourlyOutputModel
                         {
                             HourlyOutput = new Dictionary<string, int> { { "Message", 0 } },
-                            HourlyOutputCommulative = new Dictionary<string, int> { { "Message", 0 } }
+                            HourlyOutputCommulative = new Dictionary<string, int> { { "Message", 0 } },
+
+                            OutputHourly = new Dictionary<string, int> { { "Message", 0 } },
+                            OutputCumulative = new Dictionary<string, int> { { "Message", 0 } }
                         },
                         Status = "No Takt Time",
                         TaktTime = 0
@@ -872,10 +879,14 @@ namespace HOMS_MES_Extractor_Web.Controllers
                     lastQty = item.ProducedQty;
                 }
 
-                // 6️⃣ Compute hourly output
+                // 6️⃣ Compute input hourly output
                 var hourlyOutput = new Dictionary<string, int>();
                 var cumulativeOutput = new Dictionary<string, int>();
                 int previous = 0; // count from zero
+
+                var outputHourly = new Dictionary<string, int>();
+                var outputCumulative = new Dictionary<string, int>();
+                int outputPrevious = 0;
 
                 var grouped = poDetails
                     .Where(x => x.StartDateTime >= firstNonZero.StartDateTime)
@@ -885,14 +896,28 @@ namespace HOMS_MES_Extractor_Web.Controllers
                 foreach (var g in grouped)
                 {
                     string label = g.Key.ToString("yyyy-MM-dd hh tt");
+
                     int cumulative = g.Last().ProducedQty;
                     int actual = cumulative - previous;
+
+                    // add to output
+                    int outputHourlyCumulative = g.Last().FinishedQty;
+                    int output = outputHourlyCumulative - outputPrevious;
+
                     if (actual > 0)
                     {
+                        //INPUT
                         hourlyOutput[label] = actual;
                         cumulativeOutput[label] = cumulative;
+
+                        //OUTPUT
+                        outputHourly[label] = output;
+                        outputCumulative[label] = outputHourlyCumulative;
+
+                        
                     }
                     previous = cumulative;
+                    outputPrevious = outputHourlyCumulative;
                 }
 
                 // 7️⃣ Compute target starting at first non-zero production
@@ -936,7 +961,10 @@ namespace HOMS_MES_Extractor_Web.Controllers
                     Output = new HourlyOutputModel
                     {
                         HourlyOutput = hourlyOutput,
-                        HourlyOutputCommulative = cumulativeOutput
+                        HourlyOutputCommulative = cumulativeOutput,
+
+                        OutputHourly = outputHourly,
+                        OutputCumulative = outputCumulative
                     },
                     Status = actualStatus,
                     TaktTime = taktInfo.TaktTime
