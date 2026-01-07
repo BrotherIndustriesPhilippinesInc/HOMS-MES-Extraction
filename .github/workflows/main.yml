@@ -4,6 +4,6 @@ on:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, windows, deploy]
+    runs-on: self-hosted
     steps:
       - run: echo "Hello from my PC"
