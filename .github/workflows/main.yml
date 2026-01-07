@@ -1,0 +1,9 @@
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, windows, deploy]
+    steps:
+      - run: echo "Hello from my PC"
