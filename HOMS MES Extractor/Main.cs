@@ -203,7 +203,8 @@ namespace HOMS_MES_Extractor
 
                 if (lines.Count < 2)
                 {
-                    MessageBox.Show("No data rows found in CSV!", "Error");
+                    //MessageBox.Show("No data rows found in CSV!", "Error");
+                    Console.WriteLine("No data rows found in CSV!");
                     return new List<PoRecord>();
                 }
 

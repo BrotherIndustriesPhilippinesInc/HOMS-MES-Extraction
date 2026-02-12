@@ -19,6 +19,6 @@ namespace Core
         [Column(TypeName = "jsonb")]
         public string Linestop_Reasons { get; set; }
 
-        public string ActualDateTime { get; set; }
+        public string? ActualDateTime { get; set; }
     }
 }

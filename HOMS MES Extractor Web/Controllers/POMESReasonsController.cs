@@ -146,20 +146,7 @@ namespace HOMS_MES_Extractor_Web.Controllers
             var entity = await _context.POMESReasons
                 .FirstOrDefaultAsync(x => x.PO == data.PO);
 
-            //if (entity != null)
-            //{
-            //    // Update existing record
-            //    entity.Advance_Reasons = JsonConvert.SerializeObject(data.Advance_ReasonsData);
-            //    entity.Linestop_Reasons = JsonConvert.SerializeObject(data.Linestop_ReasonsData);
-            //    entity.UpdatedBy = "System";
-            //    entity.UpdatedDate = DateTime.UtcNow;
-            //    //entity.ActualDateTime = data.ForDateTimeData;
-
-            //    _context.POMESReasons.Update(entity);
-            //}
-            //else
-            //{
-                // Insert new record
+           
                 entity = new POMESReasons
                 {
                     PO = data.PO,
@@ -171,7 +158,6 @@ namespace HOMS_MES_Extractor_Web.Controllers
                 };
 
                 _context.POMESReasons.Add(entity);
-            //}
 
             await _context.SaveChangesAsync();
 
