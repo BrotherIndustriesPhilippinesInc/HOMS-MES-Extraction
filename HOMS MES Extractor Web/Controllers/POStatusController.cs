@@ -982,17 +982,12 @@ namespace HOMS_MES_Extractor_Web.Controllers
 
             // 1️⃣ Identify POs active in the last 24h
             var activePOs = await _context.POStatus
-                .Where(x => 
-                x.StartDateTime >= since24h && 
-                x.ProducedQty != 0 && 
-                (string.IsNullOrEmpty(PO) || x.PO == PO))
-
+                .Where(x => x.StartDateTime >= since24h && x.ProducedQty != 0 && (string.IsNullOrEmpty(PO) || x.PO == PO))
                 .Select(x => x.PO)
                 .Distinct()
                 .ToListAsync();
 
-            if (!activePOs.Any())
-                return Ok(results);
+            if (!activePOs.Any()) return Ok(results);
 
             // 2️⃣ Fetch full timeline for these POs
             var allPOStatus = await _context.POStatus
@@ -1000,12 +995,9 @@ namespace HOMS_MES_Extractor_Web.Controllers
                 .OrderBy(x => x.Id)
                 .ToListAsync();
 
-            // Group by PO
-            var poGroups = allPOStatus
-                .GroupBy(x => x.PO)
-                .ToDictionary(g => g.Key, g => g.ToList());
+            var poGroups = allPOStatus.GroupBy(x => x.PO).ToDictionary(g => g.Key, g => g.ToList());
 
-            // 3️⃣ Fetch takt times once
+            // 3️⃣ Fetch takt times (Professional note: Use IHttpClientFactory in production!)
             List<TaktTimeModel> taktTimeList;
             using (var httpClient = new HttpClient())
             {
@@ -1017,131 +1009,104 @@ namespace HOMS_MES_Extractor_Web.Controllers
             }
 
             // 4️⃣ Process each PO
-            foreach (var po in poGroups.Keys)
+            foreach (var poKey in poGroups.Keys)
             {
-                var poDetails = poGroups[po].OrderBy(x => x.StartDateTime).ToList();
-                var last = poDetails.Last();
-                var modelCode = last.ModelCode;
-                var plannedQty = last.PlannedQty;
+                var poDetails = poGroups[poKey].OrderBy(x => x.StartDateTime).ToList();
+                var lastEntry = poDetails.Last();
+                var taktInfo = taktTimeList.FirstOrDefault(x => x.ModelCode == lastEntry.ModelCode);
 
-                var taktInfo = taktTimeList.FirstOrDefault(x => x.ModelCode == modelCode);
-                if (taktInfo == null || taktInfo.TaktTime <= 0)
+                if (taktInfo == null || taktInfo.TaktTime <= 0) continue;
+
+                // 5️⃣ Find the first production point (SQL: po_starts)
+                var firstProduction = poDetails.FirstOrDefault(x => x.ProducedQty > 0);
+                if (firstProduction == null) continue;
+
+                // 6️⃣ Calculate Timeline and Targets (Mimicking SQL CTEs)
+                var hourlyOutput = new Dictionary<string, int>();
+                var cumulativeOutput = new Dictionary<string, int>();
+                var hourlyTarget = new Dictionary<string, int>();
+                var cumulativeTarget = new Dictionary<string, int>();
+
+                int runningCapacity = 0;
+                int previousProducedQty = 0;
+
+                // Group by Hour (Manila Time)
+                var groupedHours = poDetails
+                    .Where(x => x.StartDateTime >= firstProduction.StartDateTime)
+                    .GroupBy(x => {
+                        var local = x.StartDateTime.ToLocalTime();
+                        return new DateTime(local.Year, local.Month, local.Day, local.Hour, 0, 0);
+                    })
+                    .OrderBy(g => g.Key);
+
+                foreach (var group in groupedHours)
+                {
+                    var hourKey = group.Key;
+                    string label = hourKey.ToString("yyyy-MM-dd hh tt");
+                    var latestInHour = group.Last();
+
+                    // --- SQL logic for "AdjustedMaxCap" ---
+                    int maxCapThisHour = 3600 / (int)taktInfo.TaktTime;
+
+                    // If this is the starting hour, deduct the missed seconds
+                    if (hourKey.Hour == firstProduction.StartDateTime.ToLocalTime().Hour &&
+                        hourKey.Date == firstProduction.StartDateTime.ToLocalTime().Date)
+                    {
+                        var startTime = firstProduction.StartDateTime.ToLocalTime();
+                        int secondsRemainingInFirstHour = 3600 - (startTime.Minute * 60 + startTime.Second);
+                        maxCapThisHour = secondsRemainingInFirstHour / (int)taktInfo.TaktTime;
+                    }
+
+                    // --- SQL logic for "RunningCapacity" and "CumulativeTarget" ---
+                    runningCapacity += maxCapThisHour;
+
+                    // Cumulative Target is capped by PlannedQty: LEAST(PlannedQty, RunningCapacity)
+                    int currentCumulativeTarget = Math.Min(lastEntry.PlannedQty, runningCapacity);
+
+                    // Populate Dictionaries
+                    hourlyOutput[label] = latestInHour.ProducedQty - previousProducedQty;
+                    cumulativeOutput[label] = latestInHour.ProducedQty;
+                    cumulativeTarget[label] = currentCumulativeTarget;
+
+                    previousProducedQty = latestInHour.ProducedQty;
+                }
+
+                // 7️⃣ Determine LATEST Status only (To avoid the 300+ results bug)
+                string actualStatus = "Idle";
+                if (cumulativeOutput.Any())
+                {
+                    var latest = cumulativeOutput.Last();
+                    int actualVal = latest.Value;
+                    int targetVal = cumulativeTarget[latest.Key];
+
+                    if (actualVal >= lastEntry.PlannedQty)
+                        actualStatus = "Completed";
+                    else if (actualVal > targetVal)
+                        actualStatus = "Advance";
+                    else if (actualVal >= (targetVal * 0.80))
+                        actualStatus = "Target Achieved";
+                    else
+                        actualStatus = "Delayed";
+                }
+
+                // 8️⃣ Add only if the CURRENT state is Delayed
+                if (actualStatus == "Delayed")
                 {
                     results.Add(new POStatusTaktTimeModel
                     {
-                        poStatus = last,
-                        Target = new Target
-                        {
-                            hourly = new Dictionary<string, int> { { "Message", 0 } },
-                            cumulative = new Dictionary<string, int> { { "Message", 0 } }
-                        },
+                        poStatus = lastEntry,
+                        Status = actualStatus,
+                        TaktTime = taktInfo.TaktTime,
+                        Target = new Target { cumulative = cumulativeTarget },
                         Output = new HourlyOutputModel
                         {
-                            HourlyOutput = new Dictionary<string, int> { { "Message", 0 } },
-                            HourlyOutputCommulative = new Dictionary<string, int> { { "Message", 0 } }
-                        },
-                        Status = "No Takt Time",
-                        TaktTime = 0
+                            HourlyOutput = hourlyOutput,
+                            HourlyOutputCommulative = cumulativeOutput
+                        }
                     });
-                    continue;
                 }
-
-                // 5️⃣ Find the first non-zero production point
-                var firstNonZero = poDetails.FirstOrDefault(x => x.ProducedQty > 0);
-                if (firstNonZero == null) continue;
-
-                var firstNonZeroLocal = firstNonZero.StartDateTime.ToLocalTime();
-                var startTimes = new List<DateTime> { firstNonZeroLocal };
-
-                // Detect resume points
-                int lastQty = firstNonZero.ProducedQty;
-                DateTime lastChangeTime = firstNonZeroLocal;
-                TimeSpan idleThreshold = TimeSpan.FromMinutes(20);
-
-                foreach (var item in poDetails.SkipWhile(x => x.Id <= firstNonZero.Id))
-                {
-                    var localTime = item.StartDateTime.ToLocalTime();
-                    if (item.ProducedQty > lastQty)
-                    {
-                        if ((localTime - lastChangeTime) >= idleThreshold)
-                            startTimes.Add(localTime);
-                        lastChangeTime = localTime;
-                    }
-                    lastQty = item.ProducedQty;
-                }
-
-                // 6️⃣ Compute hourly output
-                var hourlyOutput = new Dictionary<string, int>();
-                var cumulativeOutput = new Dictionary<string, int>();
-                int previous = 0; // count from zero
-
-                var grouped = poDetails
-                    .Where(x => x.StartDateTime >= firstNonZero.StartDateTime)
-                    .GroupBy(x => new DateTime(x.StartDateTime.ToLocalTime().Year, x.StartDateTime.ToLocalTime().Month,
-                                               x.StartDateTime.ToLocalTime().Day, x.StartDateTime.ToLocalTime().Hour, 0, 0));
-
-                foreach (var g in grouped)
-                {
-                    string label = g.Key.ToString("yyyy-MM-dd hh tt");
-                    int cumulative = g.Last().ProducedQty;
-                    int actual = cumulative - previous;
-                    if (actual > 0)
-                    {
-                        hourlyOutput[label] = actual;
-                        cumulativeOutput[label] = cumulative;
-                    }
-                    previous = cumulative;
-                }
-
-                // 7️⃣ Compute target starting at first non-zero production
-                var targetData = GetHourlyAndCumulativeTargets(startTimes, firstNonZero, taktInfo.TaktTime);
-
-                // 8️⃣ Determine status based on time
-                string actualStatus = "Delayed"; // default
-
-                if (cumulativeOutput.Any())
-                {
-                    // latest actual snapshot
-                    var latestActual = cumulativeOutput.Values.Last();
-
-                    // latest target **up to that time**
-                    var targetAtLatestTime = targetData.cumulative
-                        .Where(t => DateTime.Parse(t.Key) <= DateTime.Parse(cumulativeOutput.Keys.Last()))
-                        .OrderBy(t => DateTime.Parse(t.Key))
-                        .Select(t => t.Value)
-                        .LastOrDefault();
-
-                    if (latestActual >= plannedQty) // everything done
-                        actualStatus = "Completed";
-                    else if (latestActual < targetAtLatestTime)
-                        actualStatus = "Delayed";
-                    else
-                        actualStatus = "Advance";
-                }
-                else
-                {
-                    // if no hourly output yet, but ProducedQty already equals PlannedQty
-                    if (last.ProducedQty >= plannedQty)
-                        actualStatus = "Completed";
-                }
-
-
-
-                results.Add(new POStatusTaktTimeModel
-                {
-                    poStatus = last,
-                    Target = targetData,
-                    Output = new HourlyOutputModel
-                    {
-                        HourlyOutput = hourlyOutput,
-                        HourlyOutputCommulative = cumulativeOutput
-                    },
-                    Status = actualStatus,
-                    TaktTime = taktInfo.TaktTime
-                });
             }
 
-            results = results.Where(x => x.Status != "Completed" && x.Status != "No Takt Time").ToList();
             return Ok(results);
         }
 

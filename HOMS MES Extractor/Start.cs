@@ -22,7 +22,7 @@ namespace HOMS_MES_Extractor
         {
             InitializeComponent();
 
-            StartRandomCatLoop();
+            //StartRandomCatLoop();
         }
 
         private async Task StartHourlyExtractionAt00()
@@ -88,6 +88,13 @@ namespace HOMS_MES_Extractor
                 {
                     this.Invoke(new Action(() =>
                     {
+                        var openForms = Application.OpenForms.OfType<POStatus>().ToList();
+                        foreach (var oldForm in openForms)
+                        {
+                            oldForm.Close();
+                            oldForm.Dispose();
+                        }
+
                         POStatus poStatus = new POStatus();
                         poStatus.Show();
                     }));
@@ -104,7 +111,7 @@ namespace HOMS_MES_Extractor
         private async void Start_Load(object sender, EventArgs e)
         {
             
-            await LoadRandomCatAsync();
+            //await LoadRandomCatAsync();
             _ = Task.Run(StartHourlyExtractionAt00);
             _ = Task.Run(Start5MinutesChecking);
 
@@ -159,7 +166,7 @@ namespace HOMS_MES_Extractor
 
         private async void button2_Click(object sender, EventArgs e)
         {
-            await LoadRandomCatAsync();
+            //await LoadRandomCatAsync();
         }
 
         private void Start_Shown(object sender, EventArgs e)

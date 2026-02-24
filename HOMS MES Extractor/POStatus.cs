@@ -27,15 +27,15 @@ namespace HOMS_MES_Extractor
             // === 1. THE "KILL SWITCH" (Your Request) ===
             // Check for any OTHER open instances of POStatus and close them.
             // We use ToList() to make a copy so we can modify the collection while iterating.
-            var existingForms = Application.OpenForms.OfType<POStatus>()
-                                       .Where(f => f != this) // Don't close the one we are creating right now!
-                                       .ToList();
+            //var existingForms = Application.OpenForms.OfType<POStatus>()
+            //                           .Where(f => f != this) // Don't close the one we are creating right now!
+            //                           .ToList();
 
-            foreach (var form in existingForms)
-            {
-                form.Close();
-                form.Dispose();
-            }
+            //foreach (var form in existingForms)
+            //{
+            //    form.Close();
+            //    form.Dispose();
+            //}
             // ==========================================
 
             InitializeComponent();
