@@ -20,5 +20,6 @@ namespace HOMS_MES_Extractor_Web.Data
         public DbSet<Core.Email> Email { get; set; } = default!;
         public DbSet<Core.POMESReasons> POMESReasons { get; set; } = default!;
         public DbSet<Core.Users> Users { get; set; } = default!;
+        public DbSet<Core.ProductionRecord> ProductionRecords { get; set; } = default!;
     }
 }

@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using Core;
 using HOMS_MES_Extractor_Web.Data;
 using Newtonsoft.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace HOMS_MES_Extractor_Web.Controllers
 {
@@ -162,6 +164,122 @@ namespace HOMS_MES_Extractor_Web.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Saved successfully." });
+        }
+
+
+        public class CombinedProductionView
+        {
+            public string PO { get; set; }
+            public string Section { get; set; }
+            public string LineName { get; set; }
+            public string Material { get; set; }
+            public string AdvanceReasons { get; set; } // We'll keep these as strings for the union
+            public string LinestopReasons { get; set; }
+            public DateTime? StartTime { get; set; }
+            public DateTime? EndTime { get; set; }
+            public string CreatedBy { get; set; }
+            public DateTime? CreatedDate { get; set; }
+            public string Source { get; set; } // Helpful to know where the row came from
+        }
+
+        public class ReasonDto
+        {
+            [JsonPropertyName("action_id")]
+            public JsonElement ActionId { get; set; }
+
+            [JsonPropertyName("reason_id")]
+            public JsonElement ReasonId { get; set; }
+
+            [JsonPropertyName("action_label")]
+            public string ActionLabel { get; set; }
+
+            [JsonPropertyName("action_notes")]
+            public string ActionNotes { get; set; }
+
+            [JsonPropertyName("reason_label")]
+            public string ReasonLabel { get; set; }
+
+            [JsonPropertyName("reason_notes")]
+            public string ReasonNotes { get; set; }
+        }
+
+        public class FinalProductionView
+        {
+            public string PO { get; set; }
+            public string Section { get; set; }
+            public string LineName { get; set; }
+            public string Material { get; set; }
+            public List<ReasonDto> AdvanceReasons { get; set; } // Look! A real list!
+            public List<ReasonDto> LinestopReasons { get; set; } // Look! A real list!
+            public DateTime? StartTime { get; set; }
+            public DateTime? EndTime { get; set; }
+            public string CreatedBy { get; set; }
+            public DateTime? CreatedDate { get; set; }
+            public string Source { get; set; }
+        }
+
+        [HttpGet("LeveledData")]
+        public async Task<ActionResult<IEnumerable<CombinedProductionView>>> GetLeveledData()
+        {
+            // 1. Get data from Production Records
+            var prodQuery = _context.ProductionRecords.Select(p => new CombinedProductionView
+            {
+                PO = p.Po,
+                Section = p.Section,
+                LineName = p.LineName,
+                Material = p.Material,
+                // IF NULL in DB, use empty JSON array string to prevent InvalidCastException
+                AdvanceReasons = p.AdvanceReasons ?? "[]",
+                LinestopReasons = p.LinestopReasons ?? "[]",
+                StartTime = p.StartTime,
+                EndTime = p.EndTime,
+                CreatedBy = p.Creator,
+                CreatedDate = p.TimeCreated,
+                Source = "ProductionRecord"
+            });
+
+            // 2. Get data from POMESReasons
+            var reasonsQuery = _context.POMESReasons.Select(r => new CombinedProductionView
+            {
+                PO = r.PO,
+                Section = "Printer 1",
+                LineName = "N/A",
+                Material = "N/A",
+                // Notice the column name mapping here matches your model
+                AdvanceReasons = r.Advance_Reasons ?? "[]",
+                LinestopReasons = r.Linestop_Reasons ?? "[]",
+                StartTime = null,
+                EndTime = null,
+                CreatedBy = r.CreatedBy,
+                CreatedDate = r.CreatedDate,
+                Source = "POMESReason"
+            });
+
+            var rawResult = await prodQuery.Concat(reasonsQuery).ToListAsync();
+
+            var cleanResult = rawResult.Select(r => new FinalProductionView
+            {
+                PO = r.PO,
+                Section = r.Section,
+                LineName = r.LineName,
+                Material = r.Material,
+                StartTime = r.StartTime,
+                EndTime = r.EndTime,
+                CreatedBy = r.CreatedBy,
+                CreatedDate = r.CreatedDate,
+                Source = r.Source,
+
+                // Deserialize safely!
+                AdvanceReasons = string.IsNullOrWhiteSpace(r.AdvanceReasons) || r.AdvanceReasons == "[]"
+            ? new List<ReasonDto>()
+            : System.Text.Json.JsonSerializer.Deserialize<List<ReasonDto>>(r.AdvanceReasons),
+
+                LinestopReasons = string.IsNullOrWhiteSpace(r.LinestopReasons) || r.LinestopReasons == "[]"
+            ? new List<ReasonDto>()
+            : System.Text.Json.JsonSerializer.Deserialize<List<ReasonDto>>(r.LinestopReasons)
+            }).ToList();
+
+            return Ok(cleanResult);
         }
     }
 }
