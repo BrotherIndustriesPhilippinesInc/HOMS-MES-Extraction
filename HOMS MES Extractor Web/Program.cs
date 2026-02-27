@@ -54,4 +54,18 @@ app.UseAuthorization();
 // ✅ Add controllers (API only)
 app.MapControllers();
 
+app.MapGet("/test-db", async (HOMS_MES_Extractor_WebContext dbContext) =>
+{
+    try
+    {
+        bool canConnect = await dbContext.Database.CanConnectAsync();
+        return canConnect ? Results.Ok("I connected to PostgreSQL. It's not the connection, it's your data.")
+                          : Results.Problem("Failed to connect. The server rejected it.");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"You broke it: {ex.Message}");
+    }
+});
+
 app.Run();
